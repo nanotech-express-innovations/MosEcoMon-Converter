@@ -113,9 +113,9 @@ public class Converter {
         /*
         try {
             FileOutputStream os= new FileOutputStream(configFile);
-            config.setProperty("data-file", "C:\\ecology\\data.xml");
-            config.setProperty("map-file", "C:\\ecology\\map.png");
-            config.setProperty("output-folder", "C:\\ecology\\output");
+            config.setProperty("data-file", "/Users/evilcrab/Dropbox/data.xml");
+            config.setProperty("map-file", "/Users/evilcrab/Dropbox/map.png");
+            config.setProperty("output-folder", "/Users/evilcrab/Dropbox/output");
             config.storeToXML(os, "Converter Settings");
             System.exit(0);
         } catch (IOException ex) {
@@ -255,7 +255,8 @@ public class Converter {
                         if (max < Station.Data.get(typeIndex).get(dateIndex)) {
                             max = Station.Data.get(typeIndex).get(dateIndex);
                         }
-                        b = false;
+                        if(Station.Data.get(typeIndex).get(dateIndex) != -1.0)
+                            b = false;
                     }
 
             if (b) {
@@ -268,7 +269,7 @@ public class Converter {
             if(args[1].equals("layer"))
             {
                 BufferedImage image = generateLayer(type, date);
-                String path = "\\layer " + type + " " + date + ".png";
+                String path = "/layer " + type + " " + date + ".png";
                 path = path.replaceAll(":", ".");
                 path = config.getProperty("output-folder") + path;
                 File imageFile = new File(path);
@@ -286,7 +287,7 @@ public class Converter {
                     BufferedImage map = ImageIO.read(new File(config.getProperty("map-file"))); 
                     BufferedImage combination = combineLayers(map, image, type, date);
                     
-                    String path = "\\image " + type + " " + date + ".png";
+                    String path = "/image " + type + " " + date + ".png";
                     path = path.replaceAll(":", ".");
                     path = config.getProperty("output-folder") + path;
                     File imageFile = new File(path);
@@ -335,7 +336,7 @@ public class Converter {
                 Calendar ce = Calendar.getInstance();
                 c.setTime(parser.parse(dateStart));
                 ce.setTime(parser.parse(dateFinish)); 
-                while(c.before(ce))
+                while(c.before(ce) || c.equals(ce))
                 {
                     String tmp = parser.format(c.getTime());
                     b = true;
@@ -346,7 +347,8 @@ public class Converter {
                                 dateIndex = Station.Date.indexOf(tmp);
                                 if (max < Station.Data.get(typeIndex).get(dateIndex))
                                     max = Station.Data.get(typeIndex).get(dateIndex);
-                                b = false;
+                                if(Station.Data.get(typeIndex).get(dateIndex) != -1.0)
+                                    b = false;
                             }
                         }
                     }
@@ -359,20 +361,25 @@ public class Converter {
                 
             } catch (ParseException ignored) {
             }
+
+            if (dates.isEmpty()) {
+                System.out.println("No data about this chemical on this dates");
+                System.exit(0);
+            }
             
             initializeColors(max);
             
             for (int i = 0; i < dates.size(); i++) {
                 System.out.println("Generating layer " + i);
                 layers.add(generateLayer(type, dates.get(i)));
-                String path = "\\layer " + type + " " + dates.get(i) + ".png";
+                /*String path = "\\layer " + type + " " + dates.get(i) + ".png";
                 path = path.replaceAll(":", ".");
                 path = config.getProperty("output-folder") + path;
                 File imageFile = new File(path);
                 try {
                     ImageIO.write(layers.get(i), "png", imageFile);
                 } catch (IOException ignored) {
-                }
+                }   */
             }
 
             
@@ -381,7 +388,7 @@ public class Converter {
             {
                 
                 
-                String path = "\\layer " + type + " " + dateStart + "-" + dateFinish + ".gif";
+                String path = "/layer " + type + " " + dateStart + "-" + dateFinish + ".gif";
                 path = path.replaceAll(":", ".");
                 path = config.getProperty("output-folder") + path;
                 
@@ -402,7 +409,7 @@ public class Converter {
             if(args[1].equals("image"))
             {
                 try {
-                    String path = "\\layer " + type + " " + dateStart + "-" + dateFinish + ".gif";
+                    String path = "/image " + type + " " + dateStart + "-" + dateFinish + ".gif";
                     path = path.replaceAll(":", ".");
                     path = config.getProperty("output-folder") + path;
                     
@@ -433,12 +440,15 @@ public class Converter {
         int typeIndex;
         int dateIndex;
 
+        weightedPoints.clear();
+
         for (Station Station : Stations) {
             if (Station.Types.contains(type)) {
                 if (Station.Date.contains(date)) {
                     typeIndex = Station.Types.indexOf(type);
                     dateIndex = Station.Date.indexOf(date);
-                    weightedPoints.add(new WeightedPoint(Station.x, Station.y, Station.Data.get(typeIndex).get(dateIndex)));
+                    if(Station.Data.get(typeIndex).get(dateIndex) != -1.0)
+                        weightedPoints.add(new WeightedPoint(Station.x, Station.y, Station.Data.get(typeIndex).get(dateIndex)));
                 }
             }
         }
@@ -454,13 +464,15 @@ public class Converter {
         g2d.drawString(colorRanges.get(colorRanges.size() - 1).max + "", 35, 560);
         g2d.drawRect(19, 359, 11, 201);
 
-        for (com.nanotech.Station Station : Stations) {
-            if (Station.Types.contains(type)) {
+        for (Station Station : Stations)
+            if (Station.Types.contains(type))
                 if (Station.Date.contains(date)) {
-                    g2d.drawOval(Station.x, Station.y, 2, 2);
+                    typeIndex = Station.Types.indexOf(type);
+                    dateIndex = Station.Date.indexOf(date);
+                    if(Station.Data.get(typeIndex).get(dateIndex) != -1.0)
+                        g2d.drawOval(Station.x, Station.y, 2, 2);
                 }
-            }
-        }
+
 
         int counter = 0;
         for (ColorRange r : colorRanges) {
@@ -474,6 +486,9 @@ public class Converter {
     
     static BufferedImage combineLayers(BufferedImage back, BufferedImage image, String type, String date)
     {
+        int typeIndex;
+        int dateIndex;
+
         BufferedImage combination = new BufferedImage(600, 600, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g2d = combination.createGraphics();
 
@@ -491,13 +506,15 @@ public class Converter {
         g2d.drawString(colorRanges.get(0).min + "", 35, 375);
         g2d.drawString(colorRanges.get(colorRanges.size() - 1).max + "", 35, 560);
         g2d.drawRect(19, 359, 11, 201);
-        for (com.nanotech.Station Station : Stations) {
-            if (Station.Types.contains(type)) {
+
+        for (Station Station : Stations)
+            if (Station.Types.contains(type))
                 if (Station.Date.contains(date)) {
-                    g2d.drawOval(Station.x, Station.y, 2, 2);
+                    typeIndex = Station.Types.indexOf(type);
+                    dateIndex = Station.Date.indexOf(date);
+                    if(Station.Data.get(typeIndex).get(dateIndex) != -1.0)
+                        g2d.drawOval(Station.x, Station.y, 2, 2);
                 }
-            }
-        }
         
         return combination;
     }
@@ -520,7 +537,7 @@ public class Converter {
         for(int i = 0; i < Folders.size(); i++)
         {
             try {
-                BufferedReader br = new BufferedReader(new FileReader(Folders.get(i)+"\\coord.txt"));
+                BufferedReader br = new BufferedReader(new FileReader(Folders.get(i)+"/coord.txt"));
                 String line = br.readLine();
                 Stations.get(i).x = Integer.parseInt(line.split(" ")[0]);
                 Stations.get(i).y = Integer.parseInt(line.split(" ")[1]);
@@ -572,7 +589,7 @@ public class Converter {
                     if (!Stations.get(i).Date.contains(curDate)) {
                         Stations.get(i).Date.add(curDate);
                         for (int ii = 2; ii < ss.length; ii++) {
-                            Stations.get(i).Data.get(ii - 2).add((ss[ii].equals("----")) ? (0.0) : (Double.parseDouble(ss[ii])));
+                            Stations.get(i).Data.get(ii - 2).add((ss[ii].equals("----")) ? (-1.0) : (Double.parseDouble(ss[ii])));
                         }
 
                     }
@@ -591,7 +608,7 @@ public class Converter {
                         if (!Stations.get(i).Date.contains(curDate)) {
                             Stations.get(i).Date.add(curDate);
                             for (int ii = 2; ii < ss.length; ii++) {
-                                Stations.get(i).Data.get(ii - 2).add((ss[ii].equals("----")) ? (0.0) : (Double.parseDouble(ss[ii])));
+                                Stations.get(i).Data.get(ii - 2).add((ss[ii].equals("----")) ? (-1.0) : (Double.parseDouble(ss[ii])));
                             }
 
                         }
@@ -654,7 +671,7 @@ public class Converter {
     }
     
      private static void drawImage(BufferedImage bufferedImage) {
- 
+
         for (int i = 0; i < bufferedImage.getWidth(); i++) {
             for (int j = 0; j < bufferedImage.getHeight(); j++) {
                 bufferedImage.setRGB(i, j, getColor(getValueShepard(i, j)));
